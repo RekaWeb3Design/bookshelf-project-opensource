@@ -1,0 +1,571 @@
+:root {
+  --serif: 'Fraunces Variable', Georgia, 'Times New Roman', serif;
+  --paper: #ead9b0;
+  --ink: #2c2620;
+  --night: #120d0a;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--night);
+  font-family: var(--serif);
+}
+
+#root canvas {
+  display: block;
+  touch-action: none; /* swipes pan the shelf / change rows instead of scrolling the page */
+}
+
+/* The open book's Html page is portalled here; CameraRig translates it to follow the lens shift. */
+.html-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* Right-hand page of the open book (drei Html). Sized in px by BookPages. */
+.project-page {
+  box-sizing: border-box;
+  padding: 26px 30px;
+  overflow: hidden;
+  color: var(--ink);
+  font: 14px/1.5 var(--serif);
+  user-select: text;
+}
+
+.project-page__body {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.project-page h1 {
+  margin: 14px 0 4px;
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 1.15;
+}
+
+.project-page p {
+  margin: 0 0 12px;
+}
+
+.project-page__tagline {
+  font-style: italic;
+  font-size: 15px;
+  color: #5c5145;
+}
+
+.project-page__back {
+  align-self: flex-start;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #7a6a58;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.project-page__back:hover,
+.project-page__back:focus-visible {
+  color: #2c2620;
+  text-decoration: underline;
+}
+
+.project-page__chips,
+.project-page__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+}
+
+.project-page__chips li {
+  padding: 1px 9px;
+  border: 1px solid #b9ab94;
+  border-radius: 999px;
+  font-size: 12px;
+}
+
+.project-page__status {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  color: #5c5145;
+}
+
+.project-page__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.project-page__dot--live {
+  background: #4f9e5b;
+}
+
+.project-page__dot--wip {
+  background: #c9962a;
+}
+
+.project-page__dot--idea {
+  background: #6f8fd6;
+}
+
+.project-page__links {
+  margin-top: auto;
+}
+
+.project-page__links a {
+  color: #2c2620;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Bottom-left corner: "Change vibe" and the zoom buttons. Small and quiet, near-opaque so readable over any photo. */
+.corner {
+  position: fixed;
+  left: 16px;
+  bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.vibe-button,
+.zoom-controls button {
+  min-height: 32px;
+  padding: 5px 14px;
+  border: 1px solid rgba(243, 230, 196, 0.6);
+  border-radius: 999px;
+  background: rgba(18, 13, 10, 0.86);
+  color: #f3e6c4;
+  font: 13px/1.4 var(--serif);
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.zoom-controls {
+  display: flex;
+  gap: 6px;
+}
+
+.zoom-controls button {
+  min-width: 32px;
+  padding: 5px 10px;
+}
+
+.zoom-controls button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.zoom-controls button:not(:disabled):hover,
+.zoom-controls button:focus-visible,
+.vibe-button:hover,
+.vibe-button:focus-visible {
+  border-color: #f3e6c4;
+  background: #120d0a;
+}
+
+.vibe-button:focus-visible,
+.zoom-controls button:focus-visible,
+.row-pager button:focus-visible,
+.project-nav button:focus-visible,
+.project-page button:focus-visible,
+.project-page a:focus-visible,
+.chooser button:focus-visible {
+  outline: 2px solid #f2c879;
+  outline-offset: 3px;
+}
+
+/* Focus moved by code after a tap or click (into a dialog, onto the open page): no ring. See inputModality.ts. */
+html[data-input='pointer'] :focus-visible {
+  outline: none;
+}
+
+html[data-input='pointer'] .project-page__back:focus-visible:not(:hover) {
+  color: #7a6a58;
+  text-decoration: none;
+}
+
+/* "Choose your vibe" dialog */
+.chooser {
+  box-sizing: border-box;
+  width: min(880px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  padding: 34px 38px 30px;
+  border: 1px solid #c9b385;
+  border-radius: 6px;
+  background: var(--paper) url(/textures/paper.webp) center / cover;
+  color: var(--ink);
+  font-family: var(--serif);
+  text-align: center;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
+}
+
+.chooser::backdrop {
+  background: radial-gradient(ellipse at 50% 40%, rgba(46, 30, 18, 0.72), rgba(8, 6, 5, 0.9));
+}
+
+.chooser h1 {
+  margin: 0;
+  font-size: 34px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.chooser__lede {
+  margin: 6px 0 24px;
+  font-style: italic;
+  color: #6a5a45;
+}
+
+.chooser__grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 18px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chooser__card {
+  display: block;
+  width: 100%;
+  padding: 6px 6px 10px;
+  border: 1px solid #c9b385;
+  border-radius: 4px;
+  background: rgba(255, 250, 235, 0.55);
+  color: inherit;
+  font: 600 18px/1.3 var(--serif);
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+}
+
+.chooser__card img {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin-bottom: 9px;
+  border-radius: 2px;
+}
+
+.chooser__card:hover,
+.chooser__card:focus-visible {
+  border-color: #8a6a3a;
+  box-shadow: 0 8px 22px rgba(60, 38, 12, 0.3);
+  transform: translateY(-2px);
+}
+
+.chooser__card[aria-pressed='true'] {
+  border-color: #8a5a1c;
+  box-shadow: inset 0 0 0 2px #b8822e;
+}
+
+.chooser__keep {
+  margin-top: 20px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #6a5a45;
+  font: italic 14px var(--serif);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* Loading screen */
+.loading {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  background: var(--paper) url(/textures/paper.webp) center / cover;
+  color: var(--ink);
+  transition: opacity 0.7s ease, visibility 0s linear 0.7s;
+}
+
+.loading--done {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.loading p {
+  margin: 0;
+}
+
+.loading__title {
+  font-size: 44px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.loading__bar {
+  width: 180px;
+  height: 2px;
+  background: rgba(44, 38, 32, 0.18);
+}
+
+.loading__bar span {
+  display: block;
+  height: 100%;
+  background: #8a5a1c;
+  transform-origin: left;
+  transition: transform 0.3s ease;
+}
+
+.loading__note {
+  font-style: italic;
+  font-size: 14px;
+  color: #6a5a45;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chooser__card,
+  .loading,
+  .loading__bar span {
+    transition: none;
+  }
+}
+
+/* The shelf as a list, for keyboards and screen readers. Off-screen until something in it has focus. */
+.project-nav {
+  position: fixed;
+  top: 14px;
+  left: 16px;
+  width: min(340px, calc(100vw - 32px));
+  max-height: calc(100vh - 80px);
+  overflow: auto;
+  border: 1px solid #c9b385;
+  border-radius: 6px;
+  background: var(--paper) url(/textures/paper.webp) center / cover;
+  color: var(--ink);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+}
+
+.project-nav:not(:focus-within) {
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  border: 0;
+}
+
+.project-nav ul {
+  margin: 0;
+  padding: 8px;
+  list-style: none;
+}
+
+.project-nav button {
+  display: block;
+  width: 100%;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: inherit;
+  font: 14px/1.35 var(--serif);
+  text-align: left;
+  cursor: pointer;
+}
+
+.project-nav button:hover,
+.project-nav button:focus-visible {
+  background: rgba(138, 90, 28, 0.16);
+}
+
+.project-nav strong,
+.project-nav span {
+  display: block;
+}
+
+.project-nav span {
+  font-style: italic;
+  color: #5c5145;
+}
+
+/* Small screens showing one row at a time: step between rows (swiping up/down does the same). */
+.row-pager {
+  position: fixed;
+  right: 12px;
+  top: 50%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transform: translateY(-50%);
+}
+
+.row-pager button {
+  width: 44px;
+  height: 44px;
+  border: 1px solid rgba(243, 230, 196, 0.6);
+  border-radius: 50%;
+  background: rgba(18, 13, 10, 0.86);
+  color: #f3e6c4;
+  font: 20px/1 var(--serif);
+  cursor: pointer;
+}
+
+.row-pager button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+/* The project page as a 2D card (small screens, reduced motion). */
+.project-card {
+  box-sizing: border-box;
+  width: min(440px, calc(100vw - 28px));
+  max-height: calc(100dvh - 40px);
+  padding: 0;
+  border: 0;
+  border-top: 6px solid var(--book);
+  border-radius: 4px;
+  color: var(--ink);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.65);
+  animation: card-in 0.4s ease backwards;
+}
+
+.project-card::backdrop {
+  background: rgba(10, 7, 5, 0.55);
+  animation: card-in 0.4s ease backwards;
+}
+
+/* The book flies up first, then the card takes over. */
+.project-card--delayed,
+.project-card--delayed::backdrop {
+  animation-delay: 1.25s;
+}
+
+.project-card__page {
+  min-height: min(420px, calc(100dvh - 46px));
+  padding: 24px 24px 22px;
+  overflow: auto;
+  font-size: 16px;
+}
+
+.project-card__page h1 {
+  font-size: 28px;
+}
+
+.project-card__page .project-page__tagline {
+  font-size: 17px;
+}
+
+.project-card__page .project-page__back,
+.project-card__page .project-page__chips li,
+.project-card__page .project-page__status {
+  font-size: 14px;
+}
+
+.project-card__page .project-page__back {
+  min-height: 32px;
+}
+
+@keyframes card-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (max-width: 767px), (max-height: 499px) {
+  .vibe-button,
+  .zoom-controls button {
+    min-height: 44px;
+    padding: 8px 16px;
+    font-size: 14px;
+  }
+
+  .zoom-controls button {
+    min-width: 44px;
+    padding: 8px 12px;
+  }
+
+  .corner {
+    gap: 8px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vibe-button,
+  .zoom-controls button {
+    transition: none;
+  }
+}
+
+/* Small screens where the shelf is wider than the view: a one-time hint that it can be dragged sideways. */
+.drag-hint {
+  position: fixed;
+  left: 50%;
+  bottom: 74px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgba(18, 13, 10, 0.78);
+  color: #f3e6c4;
+  font: italic 14px/1.3 var(--serif);
+  white-space: nowrap;
+  pointer-events: none;
+  transform: translateX(-50%);
+  animation: hint-fade 5.5s ease forwards;
+}
+
+.drag-hint span {
+  font-style: normal;
+  animation: hint-nudge 1.1s ease-in-out 3;
+}
+
+.drag-hint span:last-child {
+  animation-name: hint-nudge-right;
+}
+
+@keyframes hint-fade {
+  0%, 85% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes hint-nudge {
+  50% {
+    transform: translateX(-5px);
+  }
+}
+
+@keyframes hint-nudge-right {
+  50% {
+    transform: translateX(5px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .drag-hint span {
+    animation: none;
+  }
+}
